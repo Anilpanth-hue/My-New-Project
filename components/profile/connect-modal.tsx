@@ -1,27 +1,44 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { X, AlertCircle, Check } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useRouter } from "next/navigation"
+import { useState } from "react";
+import { X, AlertCircle, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useRouter } from "next/navigation";
+import { fetchAPI } from "@/lib/api";
+import Loading from "@/app/components/Loading";
 
 interface Platform {
-  id: string
-  name: string
-  logo: string
-  color: string
-  connected: boolean
-  username: string
+  id: string;
+  name: string;
+  logo: string;
+  color: string;
+  connected: boolean;
+  username: string;
 }
 
-export function ConnectModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [isEmailVerified, setIsEmailVerified] = useState(false)
+export function ConnectModal({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
   const [platforms, setPlatforms] = useState<Platform[]>([
     {
       id: "leetcode",
@@ -55,48 +72,93 @@ export function ConnectModal({ open, onOpenChange }: { open: boolean; onOpenChan
       connected: false,
       username: "",
     },
-  ])
-  const [error, setError] = useState("")
+  ]);
+  const [error, setError] = useState("");
 
-  const verifyEmail = () => {
+  const verifyEmail = async () => {
     if (!email || !email.includes("@") || !email.includes(".")) {
-      setError("Please enter a valid email address")
-      return
+      setError("Please enter a valid email address");
+      return;
     }
 
-    // Simulate email verification
-    setIsEmailVerified(true)
-    setError("")
-  }
+    setIsVerifying(true);
+    setError("");
 
-  const connectPlatform = (id: string, username: string) => {
+    try {
+      // Simulate API call
+      await fetchAPI("/api/auth/verify-email");
+      setIsEmailVerified(true);
+    } catch (error) {
+      setError("Failed to verify email. Please try again.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const connectPlatform = async (id: string, username: string) => {
     if (!username.trim()) {
-      setError(`Please enter a valid ${platforms.find((p) => p.id === id)?.name} username`)
-      return
+      setError(
+        `Please enter a valid ${
+          platforms.find((p) => p.id === id)?.name
+        } username`
+      );
+      return;
     }
 
-    setPlatforms(
-      platforms.map((platform) => (platform.id === id ? { ...platform, connected: true, username } : platform)),
-    )
-    setError("")
-  }
+    setIsConnecting(true);
+    setError("");
 
-  const handleContinue = () => {
-    const allConnected = platforms.some((platform) => platform.connected)
+    try {
+      // Simulate API call
+      await fetchAPI(`/api/platforms/connect/${id}`);
+
+      setPlatforms(
+        platforms.map((platform) =>
+          platform.id === id
+            ? { ...platform, connected: true, username }
+            : platform
+        )
+      );
+    } catch (error) {
+      setError(
+        `Failed to connect to ${
+          platforms.find((p) => p.id === id)?.name
+        }. Please try again.`
+      );
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleContinue = async () => {
+    const allConnected = platforms.some((platform) => platform.connected);
 
     if (!allConnected) {
-      setError("Please connect at least one platform to continue")
-      return
+      setError("Please connect at least one platform to continue");
+      return;
     }
 
-    // Save connected platforms to localStorage for demo purposes
-    localStorage.setItem("connectedPlatforms", JSON.stringify(platforms.filter((p) => p.connected)))
-    localStorage.setItem("userEmail", email)
+    setIsNavigating(true);
 
-    // Close modal and redirect to profile page
-    onOpenChange(false)
-    router.push("/profile-tracker")
-  }
+    try {
+      // Simulate API call
+      await fetchAPI("/api/profile/create");
+
+      // Save connected platforms to localStorage for demo purposes
+      localStorage.setItem(
+        "connectedPlatforms",
+        JSON.stringify(platforms.filter((p) => p.connected))
+      );
+      localStorage.setItem("userEmail", email);
+
+      // Close modal and redirect to profile page
+      onOpenChange(false);
+      router.push("/profile-tracker");
+    } catch (error) {
+      setError("Failed to create profile. Please try again.");
+      setIsNavigating(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -106,7 +168,8 @@ export function ConnectModal({ open, onOpenChange }: { open: boolean; onOpenChan
             Connect Your Coding Profiles
           </DialogTitle>
           <DialogDescription className="text-center text-gray-400">
-            Link your coding platform accounts to track all your progress in one place
+            Link your coding platform accounts to track all your progress in one
+            place
           </DialogDescription>
         </DialogHeader>
 
@@ -131,10 +194,22 @@ export function ConnectModal({ open, onOpenChange }: { open: boolean; onOpenChan
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="bg-gray-800 border-gray-700 text-white"
+                  disabled={isVerifying}
                 />
               </div>
-              <Button onClick={verifyEmail} className="w-full bg-primary hover:bg-primary/90">
-                Verify Email
+              <Button
+                onClick={verifyEmail}
+                className="w-full bg-primary hover:bg-primary/90"
+                disabled={isVerifying}
+              >
+                {isVerifying ? (
+                  <>
+                    <span className="mr-2">Verifying...</span>
+                    <Loading />
+                  </>
+                ) : (
+                  "Verify Email"
+                )}
               </Button>
             </div>
           ) : (
@@ -147,18 +222,23 @@ export function ConnectModal({ open, onOpenChange }: { open: boolean; onOpenChan
                   size="sm"
                   className="ml-auto text-gray-400 hover:text-white"
                   onClick={() => setIsEmailVerified(false)}
+                  disabled={isConnecting || isNavigating}
                 >
                   Change
                 </Button>
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-lg font-medium text-gray-300">Connect Platforms</h3>
+                <h3 className="text-lg font-medium text-gray-300">
+                  Connect Platforms
+                </h3>
 
                 {platforms.map((platform) => (
                   <div key={platform.id} className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <div className={`w-4 h-4 rounded-full ${platform.color}`} />
+                      <div
+                        className={`w-4 h-4 rounded-full ${platform.color}`}
+                      />
                       <Label htmlFor={platform.id} className="text-gray-300">
                         {platform.name} Username
                       </Label>
@@ -171,11 +251,15 @@ export function ConnectModal({ open, onOpenChange }: { open: boolean; onOpenChan
                         value={platform.username}
                         onChange={(e) =>
                           setPlatforms(
-                            platforms.map((p) => (p.id === platform.id ? { ...p, username: e.target.value } : p)),
+                            platforms.map((p) =>
+                              p.id === platform.id
+                                ? { ...p, username: e.target.value }
+                                : p
+                            )
                           )
                         }
                         className="bg-gray-800 border-gray-700 text-white"
-                        disabled={platform.connected}
+                        disabled={platform.connected || isConnecting}
                       />
 
                       {platform.connected ? (
@@ -184,8 +268,15 @@ export function ConnectModal({ open, onOpenChange }: { open: boolean; onOpenChan
                           size="icon"
                           className="border-gray-700 text-gray-400"
                           onClick={() =>
-                            setPlatforms(platforms.map((p) => (p.id === platform.id ? { ...p, connected: false } : p)))
+                            setPlatforms(
+                              platforms.map((p) =>
+                                p.id === platform.id
+                                  ? { ...p, connected: false }
+                                  : p
+                              )
+                            )
                           }
+                          disabled={isConnecting || isNavigating}
                         >
                           <X className="h-4 w-4" />
                         </Button>
@@ -193,9 +284,18 @@ export function ConnectModal({ open, onOpenChange }: { open: boolean; onOpenChan
                         <Button
                           variant="outline"
                           className="border-gray-700 bg-gray-800 hover:bg-gray-700 text-white"
-                          onClick={() => connectPlatform(platform.id, platform.username)}
+                          onClick={() =>
+                            connectPlatform(platform.id, platform.username)
+                          }
+                          disabled={isConnecting || isNavigating}
                         >
-                          Connect
+                          {isConnecting &&
+                          platform.username &&
+                          !platform.connected ? (
+                            <Loading />
+                          ) : (
+                            "Connect"
+                          )}
                         </Button>
                       )}
                     </div>
@@ -209,14 +309,24 @@ export function ConnectModal({ open, onOpenChange }: { open: boolean; onOpenChan
                 ))}
               </div>
 
-              <Button onClick={handleContinue} className="w-full bg-primary hover:bg-primary/90">
-                Continue to Profile Tracker
+              <Button
+                onClick={handleContinue}
+                className="w-full bg-primary hover:bg-primary/90"
+                disabled={isNavigating}
+              >
+                {isNavigating ? (
+                  <>
+                    <span className="mr-2">Loading Profile...</span>
+                    <Loading />
+                  </>
+                ) : (
+                  "Continue to Profile Tracker"
+                )}
               </Button>
             </>
           )}
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
-

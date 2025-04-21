@@ -11,8 +11,8 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Code, Github, Globe, LineChart, Trophy, Users } from "lucide-react";
+import Image from "next/image";
 import anillogo from "../assets/anillogo.jpg";
-import Image, { StaticImageData } from "next/image";
 
 interface PlatformScore {
   platform: string;
@@ -24,18 +24,18 @@ interface PlatformScore {
 }
 
 interface TrekCardProps {
-  name: string;
-  username: string;
-  avatarUrl: string | StaticImageData;
+  name?: string;
+  username?: string;
+  avatarUrl?: string;
   bio?: string;
-  platforms: PlatformScore[];
-  skills: string[];
+  platforms?: PlatformScore[];
+  skills?: string[];
 }
 
 export default function TrekCard({
   name = "Anil Panth",
   username = "anilcode",
-  avatarUrl = anillogo,
+  avatarUrl = anillogo.src,
   bio = "Full-stack developer passionate about algorithms and problem solving",
   platforms = [
     {
@@ -71,9 +71,9 @@ export default function TrekCard({
 }: TrekCardProps) {
   const [activeTab, setActiveTab] = useState("overview");
 
-  const colorMap = {
+  const colorMap: Record<string, string> = {
     LeetCode: "from-orange-400 to-yellow-500",
-    GeeksForGeeks: "from-orange-400 to-yellow-500",
+    GeeksForGeeks: "from-green-400 to-emerald-500",
     HackerRank: "from-amber-500 to-red-500",
     CodeChef: "from-indigo-400 to-purple-500",
   };
@@ -156,7 +156,8 @@ export default function TrekCard({
                   <div className="h-2 w-full overflow-hidden rounded-full">
                     <div
                       className={`h-full rounded-full bg-gradient-to-r ${
-                        colorMap[platform.platform as keyof typeof colorMap]
+                        colorMap[platform.platform] ||
+                        "from-gray-400 to-gray-600"
                       }`}
                       style={{
                         width: `${(platform.solved / platform.total) * 100}%`,
@@ -172,7 +173,7 @@ export default function TrekCard({
               {platforms.map((platform) => (
                 <div
                   key={platform.platform}
-                  className="rounded-lg bg-green-600/50 p-3"
+                  className="rounded-lg bg-gray-900/50 p-3"
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{platform.platform}</span>
@@ -208,7 +209,7 @@ export default function TrekCard({
           <TabsContent value="skills" className="mt-4">
             <div className="flex flex-wrap gap-2">
               {skills.map((skill) => (
-                <Badge key={skill} className="bg-gray-900/50 hover:bg-gray-800">
+                <Badge key={skill} className="bg-yellow-500 hover:bg-gray-800">
                   {skill}
                 </Badge>
               ))}
@@ -247,137 +248,3 @@ export default function TrekCard({
     </Card>
   );
 }
-
-/* 
-// FUTURE IMPLEMENTATION: API Integration with coding platforms
-// This code will be used to fetch real data from various platforms
-
-// 1. LeetCode API Integration
-async function fetchLeetCodeStats(username: string) {
-  try {
-    // LeetCode GraphQL API endpoint
-    const response = await fetch('https://leetcode.com/graphql', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: `
-          query getUserProfile($username: String!) {
-            matchedUser(username: $username) {
-              username
-              submitStats: submitStatsGlobal {
-                acSubmissionNum {
-                  difficulty
-                  count
-                  submissions
-                }
-              }
-              profile {
-                ranking
-                reputation
-                starRating
-              }
-            }
-          }
-        `,
-        variables: {
-          username: username
-        }
-      })
-    });
-    
-    const data = await response.json();
-    return {
-      platform: 'LeetCode',
-      solved: data.matchedUser.submitStats.acSubmissionNum[0].count,
-      total: 2500, // Approximate total problems on LeetCode
-      rank: data.matchedUser.profile.starRating,
-      score: data.matchedUser.profile.reputation
-    };
-  } catch (error) {
-    console.error('Error fetching LeetCode stats:', error);
-    return null;
-  }
-}
-
-// 2. GeeksForGeeks API Integration
-async function fetchGFGStats(username: string) {
-  try {
-    // This would be replaced with actual GFG API endpoint
-    const response = await fetch(`https://api.geeksforgeeks.org/user/${username}`);
-    const data = await response.json();
-    
-    return {
-      platform: 'GeeksForGeeks',
-      solved: data.solvedProblems,
-      total: data.totalProblems,
-      level: data.codingLevel,
-      score: data.instituteRank
-    };
-  } catch (error) {
-    console.error('Error fetching GFG stats:', error);
-    return null;
-  }
-}
-
-// 3. HackerRank API Integration
-async function fetchHackerRankStats(username: string) {
-  try {
-    // This would be replaced with actual HackerRank API endpoint
-    const response = await fetch(`https://www.hackerrank.com/rest/hackers/${username}/profile`);
-    const data = await response.json();
-    
-    return {
-      platform: 'HackerRank',
-      solved: data.solved_challenges_count,
-      total: data.total_challenges_count,
-      rank: `${data.stars} Star`,
-      score: data.points
-    };
-  } catch (error) {
-    console.error('Error fetching HackerRank stats:', error);
-    return null;
-  }
-}
-
-// 4. CodeChef API Integration
-async function fetchCodeChefStats(username: string) {
-  try {
-    // This would be replaced with actual CodeChef API endpoint
-    const response = await fetch(`https://www.codechef.com/api/users/${username}`);
-    const data = await response.json();
-    
-    return {
-      platform: 'CodeChef',
-      solved: data.fully_solved.count,
-      total: data.total_problems,
-      rank: `${data.stars} Star`,
-      score: data.rating
-    };
-  } catch (error) {
-    console.error('Error fetching CodeChef stats:', error);
-    return null;
-  }
-}
-
-// Main function to fetch all platform stats
-async function fetchAllPlatformStats(username: string) {
-  try {
-    const [leetcode, gfg, hackerrank, codechef] = await Promise.all([
-      fetchLeetCodeStats(username),
-      fetchGFGStats(username),
-      fetchHackerRankStats(username),
-      fetchCodeChefStats(username)
-    ]);
-    
-    // Filter out null values (failed API calls)
-    const platforms = [leetcode, gfg, hackerrank, codechef].filter(Boolean);
-    
-    return platforms;
-  } catch (error) {
-    console.error('Error fetching platform stats:', error);
-    return [];
-  }
-}
-*/
